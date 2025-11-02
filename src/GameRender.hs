@@ -44,7 +44,7 @@ drawRobotBody :: Assets -> Robot -> Picture
 drawRobotBody Assets{..} r =
   let base        = robotBase r
       (x,y)       = objPos base
-      bodyAngle   = G.rad2deg (objDir base)
+      bodyAngle   = G.rad2deg (objDir base) -90
       turretAngle = G.rad2deg (turretDir (robotTurret r)) - 90
 
       -- Escala base para los cuerpos de los tanques activos
@@ -93,7 +93,7 @@ drawProjectile Assets{..} p =
                     1 -> bulletGreen
                     2 -> bulletRed
                     _ -> bulletSand
-  in translate x y $ rotate (-a) bulletPic
+  in translate x y $ rotate (-a +90) bulletPic
 
 -- | Dibuja una explosión circular con desvanecimiento progresivo.
 drawExplosion :: Assets -> Explosion -> Picture
