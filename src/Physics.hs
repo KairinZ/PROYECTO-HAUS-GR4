@@ -37,7 +37,7 @@ detectedAgent r1 r2 =
                 Evasive { evasiveDetectionRange = r } -> r
   in G.distanceBetween p1 p2 <= range && objId (robotBase r1) /= objId (robotBase r2)
 
--- | Predice si un robot colisionará con una pared si avanza un poco.
+-- | Predice si un robot colisionará con una pared u obstáculo si avanza un poco.
 isCollidingAhead :: GameState -> Robot -> Bool
 isCollidingAhead gs r =
   let currentPos = objPos (robotBase r)
@@ -50,9 +50,13 @@ isCollidingAhead gs r =
       -- Crea un objeto hipotético en la posición futura
       -- Usamos el mismo robotBase pero con la nueva posición y forma
       predictedRobotBase = (robotBase r) { objPos = predictedPos, objShape = (G.moveTo (objShape (robotBase r)) predictedPos) }
-  in any (checkCollision (objShape predictedRobotBase)) (mapWalls (gameMap gs))
+      
+      -- Verifica colisión con paredes y obstáculos
+      wallsCollision = any (checkCollision (objShape predictedRobotBase)) (mapWalls (gameMap gs))
+      obstaclesCollision = any (\obs -> checkCollision (objShape predictedRobotBase) (obstacleShape obs)) (obstacles gs)
+  in wallsCollision || obstaclesCollision
 
--- | Predice si un robot colisionará con una pared si retrocede un poco.
+-- | Predice si un robot colisionará con una pared u obstáculo si retrocede un poco.
 isCollidingBehind :: GameState -> Robot -> Bool
 isCollidingBehind gs r =
   let currentPos = objPos (robotBase r)
@@ -64,4 +68,8 @@ isCollidingBehind gs r =
 
       -- Crea un objeto hipotético en la posición futura
       predictedRobotBase = (robotBase r) { objPos = predictedPos, objShape = (G.moveTo (objShape (robotBase r)) predictedPos) }
-  in any (checkCollision (objShape predictedRobotBase)) (mapWalls (gameMap gs))
+      
+      -- Verifica colisión con paredes y obstáculos
+      wallsCollision = any (checkCollision (objShape predictedRobotBase)) (mapWalls (gameMap gs))
+      obstaclesCollision = any (\obs -> checkCollision (objShape predictedRobotBase) (obstacleShape obs)) (obstacles gs)
+  in wallsCollision || obstaclesCollision

@@ -5,6 +5,8 @@ module Entities
   , GameMap(..)
   , AIType(..)
   , RobotState(..)
+  , Obstacle(..)
+  , ObstacleType(..)
   ) where
 
 import Geometry (Point, Vector, Angle, Polygon)
@@ -67,4 +69,19 @@ data GameMap = GameMap
   { mapWidth  :: Float
   , mapHeight :: Float
   , mapWalls  :: [Polygon]
+  } deriving (Show, Eq)
+
+-- | Tipo de obstáculo (caja o valla)
+data ObstacleType = CrateObstacle | FenceObstacle
+  deriving (Eq, Show)
+
+-- | Obstáculo estático del juego
+--   Representa objetos que bloquean el movimiento pero no se mueven
+data Obstacle = Obstacle
+  { obstacleId     :: Int
+  , obstaclePos    :: Point
+  , obstacleWidth  :: Float
+  , obstacleHeight :: Float
+  , obstacleShape  :: Polygon
+  , obstacleType   :: ObstacleType
   } deriving (Show, Eq)

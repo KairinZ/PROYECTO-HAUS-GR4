@@ -5,7 +5,7 @@ module GameRender where
 import Graphics.Gloss hiding (Polygon)
 import qualified Graphics.Gloss.Interface.Pure.Game as Gloss (text)
 import GameState
-import Entities (Robot(..), RobotState(..), Projectile(..), GameObject(..), RobotTurret(..))
+import Entities (Robot(..), RobotState(..), Projectile(..), GameObject(..), RobotTurret(..), Obstacle(..), ObstacleType(..))
 import GameConstants (screenWidth, screenHeight, robotWidth, robotHeight, turretWidth, turretHeight, projectileWidth, projectileHeight, robotOriginalWidth, robotOriginalHeight)
 import qualified Geometry as G
 import GameUtils (getColorForId)
@@ -19,6 +19,7 @@ drawGame gs =
   let (impactExplosions, deathExplosions) = partition ((== Impact) . expType) (explosions gs)
   in pictures $
      [ scale (fromIntegral screenWidth / 1024) (fromIntegral screenHeight / 768) (arenaPic (assets gs)) ] -- Fondo
+  ++ map (drawObstacle (assets gs)) (obstacles gs) -- Obstáculos (dibujados antes que robots para que queden detrás)
   ++ map (drawExplosion (assets gs)) impactExplosions -- Explosiones de impacto
   ++ map (drawRobotBody (assets gs)) (robots gs)
   ++ map (drawProjectile (assets gs)) (projectiles gs)
@@ -108,3 +109,22 @@ drawExplosion Assets{..} Explosion{..} =
 -- | Dibuja el límite del mapa.
 drawMapBoundary :: Picture
 drawMapBoundary = color white $ rectangleWire (fromIntegral screenWidth) (fromIntegral screenHeight)
+
+-- | Dibuja un obstáculo según su tipo.
+drawObstacle :: Assets -> Obstacle -> Picture
+drawObstacle Assets{..} obs =
+  let (x, y) = obstaclePos obs
+      w = obstacleWidth obs
+      h = obstacleHeight obs
+      
+      -- Selecciona el sprite según el tipo de obstáculo
+      obstaclePic = case obstacleType obs of
+                     CrateObstacle -> crateWood
+                     FenceObstacle -> fenceRed
+      
+      -- Escala el sprite para que coincida con el tamaño del obstáculo
+      -- Los sprites se escalan proporcionalmente al tamaño definido
+      -- Asumimos un tamaño base aproximado de 64x64 píxeles para los sprites
+      scaleX = w / 64.0
+      scaleY = h / 64.0
+  in translate x y $ scale scaleX scaleY obstaclePic

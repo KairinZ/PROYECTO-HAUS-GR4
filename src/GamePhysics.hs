@@ -87,7 +87,8 @@ handleCollisions gs =
       -- Colisiones de proyectiles y otras entidades (usando CollisionSAT)
       activeRobots = filter (\r -> robotState r == Alive) (robots gs')
       objs = map robotBase activeRobots ++ map projBase (projectiles gs')
-  in applyCollisionEffects (CollisionSAT.checkCollisions objs) gs'
+      gs'' = applyCollisionEffects (CollisionSAT.checkCollisions objs) gs'
+  in detectAndResolveProjectileObstacleCollisions gs''
 
 -- | Detección y resolución de colisiones entre robots.
 --   Aplica daño y los separa físicamente.
@@ -166,3 +167,22 @@ applyEffect gs (RobotProjectile rid pid) =
              in gs { robots = robotsAfterDamage, projectiles = projs', explosions = allExplosions }
        _ -> gs
 applyEffect gs (RobotRobot _ _) = gs
+
+-- | Detecta y resuelve colisiones entre proyectiles y obstáculos.
+--   Los proyectiles que colisionan con obstáculos son eliminados.
+detectAndResolveProjectileObstacleCollisions :: GameState -> GameState
+detectAndResolveProjectileObstacleCollisions gs =
+  let projs = projectiles gs
+      obss = obstacles gs
+      
+      -- Verifica cada proyectil contra cada obstáculo
+      collidingProjectileIds = [ objId (projBase p)
+                               | p <- projs
+                               , obs <- obss
+                               , checkCollision (objShape (projBase p)) (obstacleShape obs)
+                               ]
+      
+      -- Elimina los proyectiles que colisionaron con obstáculos
+      filteredProjectiles = filter (\p -> objId (projBase p) `notElem` collidingProjectileIds) projs
+      
+  in gs { projectiles = filteredProjectiles }

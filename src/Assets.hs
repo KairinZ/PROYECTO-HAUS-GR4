@@ -17,7 +17,9 @@ data Assets = Assets
   , bulletSand      :: Picture
   , explosionFrames :: [Picture]
   , arenaPic        :: Picture
-  , destroyedTank   :: Picture -- Nuevo: imagen de tanque destruido
+  , destroyedTank   :: Picture 
+  , crateWood       :: Picture 
+  , fenceRed        :: Picture 
   }
 
 loadAssets :: IO Assets
@@ -42,17 +44,21 @@ loadAssets = do
 
   arenaPic'     <- loadJuicyPNG "assets/map/mapa.png"
   destroyedTankPic <- loadJuicyPNG "assets/robots/tanqueDestruido.png"
+  
+  crateWoodPic  <- loadJuicyPNG "assets/obstacles/crateWood.png"
+  fenceRedPic   <- loadJuicyPNG "assets/obstacles/fenceRed.png"
 
   let explosionPics = [explosion1, explosion2, explosion3, explosion4, explosion5]
 
   case (tankBluePic, tankGreenPic, tankRedPic, tankSandPic, turretPic',
         bulletBluePic, bulletDarkPic, bulletGreenPic, bulletRedPic, bulletSandPic,
-        sequence explosionPics, arenaPic', destroyedTankPic) of
+        sequence explosionPics, arenaPic', destroyedTankPic, crateWoodPic, fenceRedPic) of
     (Just tb, Just tg, Just tr, Just ts, Just tp,
      Just bb, Just bd, Just bg, Just br, Just bs,
-     Just eps, Just ap, Just dtp) ->
+     Just eps, Just ap, Just dtp, Just cw, Just fr) ->
       return Assets { tankBlue = tb, tankGreen = tg, tankRed = tr, tankSand = ts, turretPic = tp
                     , bulletBlue = bb, bulletDark = bd, bulletGreen = bg, bulletRed = br, bulletSand = bs
                     , explosionFrames = eps, arenaPic = ap, destroyedTank = dtp
+                    , crateWood = cw, fenceRed = fr
                     }
     _ -> error "Failed to load assets! Missing image files or invalid paths."

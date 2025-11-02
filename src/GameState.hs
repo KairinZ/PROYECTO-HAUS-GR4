@@ -5,6 +5,7 @@ module GameState
   , emptyGameState
   , initialWorld
   , GameMap(..) -- Export GameMap
+  , createInitialObstacles -- Export para usar en GameLogic
   ) where
 
 import Entities hiding (Explosion) -- Ocultamos Explosion de Entities
@@ -12,12 +13,13 @@ import Assets (Assets)
 import ExplosionTypes (Explosion)
 import GameTypes (GamePhase(MainMenu), GameConfig(GameConfig, numRobots, botConfigs), BotConfig(BotConfig))
 import GameConstants (screenWidth, screenHeight, robotWidth, robotHeight)
-import Geometry (createRectanglePolygon)
+import Geometry (createRectanglePolygon, Point)
 
 data GameState = GameState
   { robots      :: [Robot]
   , projectiles :: [Projectile]
   , explosions  :: [Explosion]
+  , obstacles   :: [Obstacle]
   , time        :: Float
   , gameMap     :: GameMap
   , assets      :: Assets
@@ -38,6 +40,7 @@ emptyGameState gameAssets = GameState
   { robots      = []
   , projectiles = []
   , explosions  = []
+  , obstacles   = []
   , time        = 0
   , gameMap     = createGameMap (fromIntegral screenWidth) (fromIntegral screenHeight)
   , assets      = gameAssets
@@ -74,3 +77,40 @@ initialWorld = GameWorld
 
 countActiveRobots :: [Robot] -> Int
 countActiveRobots rs = length [r | r <- rs, robotHealth r > 0]
+
+-- | Tamaños de los obstáculos (en píxeles)
+crateWidth, crateHeight :: Float
+crateWidth = 50.0
+crateHeight = 50.0
+
+fenceWidth, fenceHeight :: Float
+fenceWidth = 50.0
+fenceHeight = 30.0
+
+-- | Crea los obstáculos iniciales del juego.
+--   Define 3 cajas y 3 vallas en posiciones específicas del mapa.
+createInitialObstacles :: [Obstacle]
+createInitialObstacles =
+  let -- 3 cajas en posiciones específicas
+      crate1 = createObstacle 1 (-150, 150) crateWidth crateHeight CrateObstacle
+      crate2 = createObstacle 2 (150, -150) crateWidth crateHeight CrateObstacle
+      crate3 = createObstacle 3 (0, 0) crateWidth crateHeight CrateObstacle
+      
+      -- 3 vallas en posiciones específicas
+      fence1 = createObstacle 4 (70, -280) fenceWidth fenceHeight FenceObstacle
+      fence2 = createObstacle 5 (0, 270) fenceWidth fenceHeight FenceObstacle
+      fence3 = createObstacle 6 (-100, 200) fenceWidth fenceHeight FenceObstacle
+      
+  in [crate1, crate2, crate3, fence1, fence2, fence3]
+
+-- | Crea un obstáculo en la posición especificada.
+createObstacle :: Int -> Point -> Float -> Float -> ObstacleType -> Obstacle
+createObstacle obsId pos w h obsType =
+  Obstacle
+    { obstacleId     = obsId
+    , obstaclePos    = pos
+    , obstacleWidth  = w
+    , obstacleHeight = h
+    , obstacleShape  = createRectanglePolygon pos w h 0  -- Los obstáculos no rotan (ángulo 0)
+    , obstacleType   = obsType
+    }

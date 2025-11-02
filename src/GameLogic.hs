@@ -2,7 +2,7 @@
 
 module GameLogic where
 
-import GameState (GameState(..), GameWorld(..), emptyGameState, initialWorld, countActiveRobots)
+import GameState (GameState(..), GameWorld(..), emptyGameState, initialWorld, countActiveRobots, createInitialObstacles)
 import Entities
 import GameTypes (GameConfig(..), GamePhase(..), BotConfig(..))
 import GameConstants
@@ -51,7 +51,7 @@ createInitialGameStateFromConfigIO gameAssets GameConfig{..} =
 
     let rs = zipWith3 (\(p,a) (BotConfig ai) i -> createRobot i p a ai)
                       randomPositions botConfigs [1..]
-    return $ (emptyGameState gameAssets) { robots = rs }
+    return $ (emptyGameState gameAssets) { robots = rs, obstacles = createInitialObstacles }
 
 -- | Posiciones y orientaciones iniciales de los robots en el mapa.
 --   (soportan hasta 4 robots)
