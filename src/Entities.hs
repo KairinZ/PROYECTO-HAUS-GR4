@@ -5,8 +5,8 @@ module Entities
   , GameMap(..)
   , AIType(..)
   , RobotState(..)
-  , Obstacle(..)
-  , ObstacleType(..)
+  , Obstacle(..), ObstacleType(..)
+  , obstacleGameObjectShape -- Export the new function
   ) where
 
 import Geometry (Point, Vector, Angle, Polygon)
@@ -38,6 +38,7 @@ data Robot = Robot
   , robotAIType    :: AIType
   , robotMemory    :: Memory
   , robotState     :: RobotState -- Nuevo: estado del robot (Alive/Destroyed)
+  , robotStunTime  :: Float  -- tiempo restante de stun en segundos
   } deriving (Show, Eq)
 
 -- | Estado de un robot: vivo o destruido.
@@ -72,7 +73,7 @@ data GameMap = GameMap
   } deriving (Show, Eq)
 
 -- | Tipo de obstáculo (caja, valla, barricada, barril explosivo)
-data ObstacleType = CrateObstacle | FenceObstacle | BarricadeObstacle | ExplosiveBarrel
+data ObstacleType = CrateObstacle | FenceObstacle | BarricadeObstacle | ExplosiveBarrel | OilSpillObstacle
   deriving (Eq, Show)
 
 -- | Obstáculo estático del juego
@@ -86,3 +87,7 @@ data Obstacle = Obstacle
   , obstacleType   :: ObstacleType
   , obstacleCountdown :: Maybe Float -- Cuenta atrás para obstáculo explosivo; Nothing si no aplica o no activado
   } deriving (Show, Eq)
+
+-- | Helper function to get the shape of an obstacle for collision checks.
+obstacleGameObjectShape :: Obstacle -> Polygon
+obstacleGameObjectShape = obstacleShape

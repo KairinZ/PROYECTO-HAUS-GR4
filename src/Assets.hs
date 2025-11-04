@@ -22,6 +22,9 @@ data Assets = Assets
   , fenceRed        :: Picture 
   , barricadeWood   :: Picture
   , barrelBlack     :: Picture
+  , oilSpill        :: Picture
+  , stunStar1       :: Picture
+  , stunStar2       :: Picture
   }
 
 loadAssets :: IO Assets
@@ -51,18 +54,22 @@ loadAssets = do
   fenceRedPic   <- loadJuicyPNG "assets/obstacles/fenceRed.png"
   barricadeWoodPic <- loadJuicyPNG "assets/obstacles/barricadeWood.png"
   barrelBlackPic <- loadJuicyPNG "assets/obstacles/barrelBlack_side.png"
+  oilSpillPic    <- loadJuicyPNG "assets/obstacles/oilSpill_large.png"
+  stunStar1Pic   <- loadJuicyPNG "assets/effects/estrella1.png"
+  stunStar2Pic   <- loadJuicyPNG "assets/effects/estrella2.png"
 
   let explosionPics = [explosion1, explosion2, explosion3, explosion4, explosion5]
 
   case (tankBluePic, tankGreenPic, tankRedPic, tankSandPic, turretPic',
         bulletBluePic, bulletDarkPic, bulletGreenPic, bulletRedPic, bulletSandPic,
-        sequence explosionPics, arenaPic', destroyedTankPic, crateWoodPic, fenceRedPic, barricadeWoodPic, barrelBlackPic) of
+        sequence explosionPics, arenaPic', destroyedTankPic, crateWoodPic, fenceRedPic, barricadeWoodPic, barrelBlackPic, oilSpillPic, stunStar1Pic, stunStar2Pic) of
     (Just tb, Just tg, Just tr, Just ts, Just tp,
      Just bb, Just bd, Just bg, Just br, Just bs,
-     Just eps, Just ap, Just dtp, Just cw, Just fr, Just bw, Just bbl) ->
+     Just eps, Just ap, Just dtp, Just cw, Just fr, Just bw, Just bbl, Just osp, Just ss1, Just ss2) ->
       return Assets { tankBlue = tb, tankGreen = tg, tankRed = tr, tankSand = ts, turretPic = tp
                     , bulletBlue = bb, bulletDark = bd, bulletGreen = bg, bulletRed = br, bulletSand = bs
                     , explosionFrames = eps, arenaPic = ap, destroyedTank = dtp
-                    , crateWood = cw, fenceRed = fr, barricadeWood = bw, barrelBlack = bbl
+                    , crateWood = cw, fenceRed = fr, barricadeWood = bw, barrelBlack = bbl, oilSpill = osp
+                    , stunStar1 = ss1, stunStar2 = ss2
                     }
     _ -> error "Failed to load assets! Missing image files or invalid paths."

@@ -21,7 +21,7 @@ drawGame gs =
      [ scale (fromIntegral screenWidth / 1024) (fromIntegral screenHeight / 768) (arenaPic (assets gs)) ] -- Fondo
   ++ map (drawObstacle (assets gs)) (obstacles gs) -- Obstáculos (dibujados antes que robots para que queden detrás)
   ++ map (drawExplosion (assets gs)) impactExplosions -- Explosiones de impacto
-  ++ map (drawRobotBody (assets gs)) (robots gs)
+  ++ map (drawRobotBody (assets gs) gs) (robots gs)
   ++ map (drawProjectile (assets gs)) (projectiles gs)
   ++ map (drawExplosion (assets gs)) deathExplosions  -- Explosiones de muerte
   ++ [drawGameOverMessage gs]
@@ -41,8 +41,8 @@ drawGameOverMessage gs
           ]
 
 -- | Dibuja el cuerpo y torreta de un robot con su barra de vida.
-drawRobotBody :: Assets -> Robot -> Picture
-drawRobotBody Assets{..} r =
+drawRobotBody :: Assets -> GameState -> Robot -> Picture
+drawRobotBody Assets{..} gs r =
   let base        = robotBase r
       (x,y)       = objPos base
       bodyAngle   = G.rad2deg (objDir base) -90
@@ -69,10 +69,11 @@ drawRobotBody Assets{..} r =
               [ translate x y $ rotate (-bodyAngle) destroyedTankScaled -- Usa el sprite de tanque destruido ya escalado
               ]
         else pictures
-              [ translate x y $ rotate (-bodyAngle) tankBodyPic
-              , translate x y $ rotate (-turretAngle) scaledTurretPic
-              , if robotHealth r > 0 then translate x (y+20) $ drawHealthBar r else blank
-              ]
+              ( [ translate x y $ rotate (-bodyAngle) tankBodyPic
+                , translate x y $ rotate (-turretAngle) scaledTurretPic
+                , if robotHealth r > 0 then translate x (y+20) $ drawHealthBar r else blank
+                ] ++ drawStunEffect Assets{..} gs r
+              )
 
 -- | Dibuja la barra de salud encima del robot.
 drawHealthBar :: Robot -> Picture
@@ -123,6 +124,7 @@ drawObstacle Assets{..} obs =
                      FenceObstacle -> fenceRed
                      BarricadeObstacle -> barricadeWood
                      ExplosiveBarrel -> barrelBlack
+                     OilSpillObstacle -> oilSpill
       
       -- Escala el sprite para que coincida con el tamaño del obstáculo
       -- Los sprites se escalan proporcionalmente al tamaño definido
@@ -130,3 +132,19 @@ drawObstacle Assets{..} obs =
       scaleX = w / 64.0
       scaleY = h / 64.0
   in translate x y $ scale scaleX scaleY obstaclePic
+
+-- | Dibuja un efecto visual sobre el robot si está stuneado.
+drawStunEffect :: Assets -> GameState -> Robot -> [Picture]
+drawStunEffect Assets{..} gs r =
+  if robotStunTime r > 0.0
+    then
+      let (x,y) = objPos (robotBase r)
+          -- Alternar entre dos sprites de estrella para la animación
+          starPic = if (floor (time gs * 5) `mod` 2) == (0 :: Int) -- Flash every 0.2 seconds
+                      then stunStar1
+                      else stunStar2
+          -- Posición de la estrella (un poco por encima del robot)
+          starOffset = 40.0 -- Ajustar según el tamaño del robot
+          scaledStar = scale 0.5 0.5 starPic -- Ajustar escala de la estrella
+      in [translate x (y + starOffset) scaledStar]
+    else []

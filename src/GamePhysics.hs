@@ -21,7 +21,7 @@ magnitude (x, y) = sqrt (x**2 + y**2)
 
 -- | Normaliza un vector (lo convierte en un vector unitario).
 normalize :: Geometry.Vector -> Geometry.Vector
-normalize v@(x, y) = 
+normalize v@(x, y) =
   let mag = magnitude v
   in if mag == 0 then (0, 0) else (x / mag, y / mag)
 
@@ -35,12 +35,13 @@ updateGameTime dt gs = gs { time = time gs + dt }
 --   - Elimina proyectiles y explosiones expiradas
 updatePhysics :: Float -> GameState -> GameState
 updatePhysics dt gs =
-  let movedR  = map (updateRobotPosition dt) (robots gs)
-      movedP  = map (updateProjectilePosition dt) (projectiles gs)
-      coolR   = map (updateRobotCooldown dt) movedR
-      aliveP  = mapMaybe (updateProjectileLifetime dt) movedP
-      aliveE  = mapMaybe updateExplosionFrame (explosions gs)
-      gs'    = updateGameTime dt gs { robots = coolR, projectiles = aliveP, explosions = aliveE }
+  let movedR   = map (updateRobotPosition dt gs) (robots gs)
+      stunnedR = map (updateRobotStun dt) movedR
+      cooledR  = map (updateRobotCooldown dt) stunnedR
+      movedP   = map (updateProjectilePosition dt) (projectiles gs)
+      aliveP   = mapMaybe (updateProjectileLifetime dt) movedP
+      aliveE   = mapMaybe updateExplosionFrame (explosions gs)
+      gs'      = updateGameTime dt gs { robots = cooledR, projectiles = aliveP, explosions = aliveE }
   in processExplosiveBarrels dt gs'
 
 -- | Gestiona barriles explosivos: dispara cuenta atrás al colisionar, reduce contador y detona aplicando daño en área.
@@ -95,17 +96,23 @@ processExplosiveBarrels dt gs =
   in gs { obstacles = keptObs, explosions = explosions gs ++ concat newExplosions, robots = robots' }
 
 -- | Mueve un robot según su velocidad y limita su posición dentro de la pantalla.
-updateRobotPosition :: Float -> Robot -> Robot
-updateRobotPosition dt r =
-  if robotState r == Destroyed
-    then r { robotBase = (robotBase r) { objVel = (0,0) } } -- Inmóvil si está destruido
-    else
-      let base0 = robotBase r
-          base1 = updatePosition base0 dt
-          clamped = clampPosition (objPos base1)  -- evita que salga de la pantalla
-          base2 = base1 { objPos = clamped }
-          shape = createRectanglePolygon (objPos base2) robotWidth robotHeight (objDir base2)
-      in r { robotBase = base2 { objShape = shape } }
+--   Si el robot está stuneado, su movimiento se anula y solo gira.
+updateRobotPosition :: Float -> GameState -> Robot -> Robot
+updateRobotPosition dt gs r
+  | robotState r == Destroyed = r { robotBase = (robotBase r) { objVel = (0,0) } }
+  | robotStunTime r > 0.0     = r
+  | otherwise = 
+      let base0   = robotBase r
+          base1   = updatePosition base0 dt
+          newPos  = objPos base1
+          newShape= createRectanglePolygon newPos robotWidth robotHeight (objDir base1)
+          solid   = filter (\o -> obstacleType o /= OilSpillObstacle) (obstacles gs)
+          hitSolid= any (\o -> checkCollision newShape (obstacleShape o)) solid
+          hitOil  = any (\o -> obstacleType o == OilSpillObstacle && checkCollision newShape (obstacleShape o)) (obstacles gs)
+          r'      = if hitOil && robotStunTime r <= 0 then r { robotStunTime = 2.0 } else r
+          clamped = clampPosition newPos
+          finalB  = if hitSolid then base0 else base1 { objPos = clamped, objShape = newShape }
+      in r' { robotBase = finalB }
 
 -- | Actualiza posición y forma del proyectil.
 updateProjectilePosition :: Float -> Projectile -> Projectile
@@ -282,3 +289,16 @@ detectAndResolveProjectileObstacleCollisions gs =
                            obss
       
   in gs { projectiles = filteredProjectiles, obstacles = updatedObstacles }
+
+-- | Actualiza el tiempo de stun de un robot y aplica efectos visuales/físicos.
+updateRobotStun :: Float -> Robot -> Robot
+updateRobotStun dt r
+  | robotState r /= Alive = r
+  | robotStunTime r > 0.0 = 
+      let newStun = max 0 (robotStunTime r - dt)
+          base0   = robotBase r
+          base'   = base0 { objVel = (0,0), objDir = objDir base0 + 6*dt }
+          turret0 = robotTurret r
+          turret' = turret0 { turretDir = turretDir turret0 + 6*dt } -- Rotate turret as well
+      in r { robotStunTime = newStun, robotBase = base', robotTurret = turret' }
+  | otherwise = r { robotStunTime = max 0 (robotStunTime r - dt) }

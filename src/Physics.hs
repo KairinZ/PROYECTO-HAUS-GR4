@@ -51,9 +51,12 @@ isCollidingAhead gs r =
       -- Usamos el mismo robotBase pero con la nueva posición y forma
       predictedRobotBase = (robotBase r) { objPos = predictedPos, objShape = (G.moveTo (objShape (robotBase r)) predictedPos) }
       
-      -- Verifica colisión con paredes y obstáculos
+      -- Filtra los obstáculos no sólidos (como OilSpillObstacle)
+      solidObstacles = filter (\obs -> obstacleType obs /= OilSpillObstacle) (obstacles gs)
+      
+      -- Verifica colisión con paredes y obstáculos sólidos
       wallsCollision = any (checkCollision (objShape predictedRobotBase)) (mapWalls (gameMap gs))
-      obstaclesCollision = any (\obs -> checkCollision (objShape predictedRobotBase) (obstacleShape obs)) (obstacles gs)
+      obstaclesCollision = any (\obs -> checkCollision (objShape predictedRobotBase) (obstacleShape obs)) solidObstacles
   in wallsCollision || obstaclesCollision
 
 -- | Predice si un robot colisionará con una pared u obstáculo si retrocede un poco.
@@ -69,7 +72,10 @@ isCollidingBehind gs r =
       -- Crea un objeto hipotético en la posición futura
       predictedRobotBase = (robotBase r) { objPos = predictedPos, objShape = (G.moveTo (objShape (robotBase r)) predictedPos) }
       
-      -- Verifica colisión con paredes y obstáculos
+      -- Filtra los obstáculos no sólidos (como OilSpillObstacle)
+      solidObstacles = filter (\obs -> obstacleType obs /= OilSpillObstacle) (obstacles gs)
+      
+      -- Verifica colisión con paredes y obstáculos sólidos
       wallsCollision = any (checkCollision (objShape predictedRobotBase)) (mapWalls (gameMap gs))
-      obstaclesCollision = any (\obs -> checkCollision (objShape predictedRobotBase) (obstacleShape obs)) (obstacles gs)
+      obstaclesCollision = any (\obs -> checkCollision (objShape predictedRobotBase) (obstacleShape obs)) solidObstacles
   in wallsCollision || obstaclesCollision

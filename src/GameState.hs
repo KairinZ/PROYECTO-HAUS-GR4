@@ -5,7 +5,8 @@ module GameState
   , emptyGameState
   , initialWorld
   , GameMap(..) -- Export GameMap
-  , createInitialObstacles -- Export para usar en GameLogic
+  , createInitialFixedObstacles -- Export para usar en GameLogic
+  , createObstacle -- Export createObstacle for use in GameLogic
   ) where
 
 import Entities hiding (Explosion) -- Ocultamos Explosion de Entities
@@ -87,10 +88,10 @@ fenceWidth, fenceHeight :: Float
 fenceWidth = 50.0
 fenceHeight = 30.0
 
--- | Crea los obstáculos iniciales del juego.
+-- | Crea los obstáculos fijos iniciales del juego (cajas, vallas, barricadas).
 --   Define 3 cajas y 3 vallas en posiciones específicas del mapa.
-createInitialObstacles :: [Obstacle]
-createInitialObstacles =
+createInitialFixedObstacles :: [Obstacle]
+createInitialFixedObstacles =
   let -- 3 cajas en posiciones específicas
       crate1 = createObstacle 1 (-150, 150) crateWidth crateHeight CrateObstacle
       crate2 = createObstacle 2 (150, -150) crateWidth crateHeight CrateObstacle
@@ -104,11 +105,8 @@ createInitialObstacles =
       -- 2 barricadas de madera en posiciones específicas, con tamaño de caja
       barricade1 = createObstacle 7 (200, 50) crateWidth crateHeight BarricadeObstacle
       barricade2 = createObstacle 8 (-220, -50) crateWidth crateHeight BarricadeObstacle
-
-      -- 1 barril explosivo inicial
-      barrel1 = createObstacle 9 (0, -120) crateWidth crateHeight ExplosiveBarrel
       
-  in [crate1, crate2, crate3, fence1, fence2, fence3, barricade1, barricade2, barrel1]
+  in [crate1, crate2, crate3, fence1, fence2, fence3, barricade1, barricade2]
 
 -- | Crea un obstáculo en la posición especificada.
 createObstacle :: Int -> Point -> Float -> Float -> ObstacleType -> Obstacle

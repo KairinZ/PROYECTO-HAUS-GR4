@@ -66,3 +66,12 @@ explosiveBarrelDamage = 30
 
 explosiveBarrelCountdown :: Float
 explosiveBarrelCountdown = 3.0
+
+explosiveBarrelWidth, explosiveBarrelHeight :: Float
+explosiveBarrelWidth = 50.0
+explosiveBarrelHeight = 50.0
+
+-- ---------- Charco de aceite ----------
+oilSpillWidth, oilSpillHeight :: Float
+oilSpillWidth = 30.0
+oilSpillHeight = 30.0
