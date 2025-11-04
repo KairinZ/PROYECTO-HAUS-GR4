@@ -5,11 +5,12 @@ module GamePhysics where
 import GameState
 import Entities
 import ExplosionTypes (Explosion(..), ExplosionType(Impact, Death))
-import GameConstants (robotWidth, robotHeight, projectileWidth, projectileHeight, screenWidth, screenHeight, robotCollisionRadius, robotCollisionDamage)
+import GameConstants (robotWidth, robotHeight, projectileWidth, projectileHeight, screenWidth, screenHeight, robotCollisionRadius, robotCollisionDamage, barricadeCollisionDamage, explosiveBarrelRadius, explosiveBarrelDamage, explosiveBarrelCountdown)
 import CollisionSAT
 import Physics (updatePosition)
 import Data.Maybe (mapMaybe)
 import GameUtils (findById, findProjById, replaceRobot, clampPosition)
+import Memory (get, set, MemoryValue(..))
 import Graphics.Gloss
 import Geometry (Point, Vector, Distance, addVec, subVec, vectorXScalar, angleToTarget, distanceBetween, createRectanglePolygon)
 import Data.List (nub)
@@ -39,7 +40,59 @@ updatePhysics dt gs =
       coolR   = map (updateRobotCooldown dt) movedR
       aliveP  = mapMaybe (updateProjectileLifetime dt) movedP
       aliveE  = mapMaybe updateExplosionFrame (explosions gs)
-  in updateGameTime dt gs { robots = coolR, projectiles = aliveP, explosions = aliveE }
+      gs'    = updateGameTime dt gs { robots = coolR, projectiles = aliveP, explosions = aliveE }
+  in processExplosiveBarrels dt gs'
+
+-- | Gestiona barriles explosivos: dispara cuenta atrás al colisionar, reduce contador y detona aplicando daño en área.
+processExplosiveBarrels :: Float -> GameState -> GameState
+processExplosiveBarrels dt gs =
+  let aliveRobots = filter (\r -> robotState r == Alive) (robots gs)
+
+      stepObstacle :: Obstacle -> (Maybe Obstacle, [Explosion], [Robot])
+      stepObstacle obs = case obstacleType obs of
+        ExplosiveBarrel ->
+          let pos = obstaclePos obs
+              -- ¿Activar cuenta atrás por primera colisión?
+              triggered = case obstacleCountdown obs of
+                            Nothing -> any (\r -> checkCollision (objShape (robotBase r)) (obstacleShape obs)) aliveRobots
+                            _       -> False
+              countdown0 = case obstacleCountdown obs of
+                             Nothing | triggered -> Just explosiveBarrelCountdown
+                             other               -> other
+              -- Avanzar el temporizador si está activo
+              (keepObstacle, explosionsOut, robotsAfterDamage) = case countdown0 of
+                Just t ->
+                  let t' = t - dt in
+                  if t' <= 0
+                    then
+                      -- Detona: eliminar obstáculo, dañar robots en radio y crear explosión visual
+                      let affected = [ r | r <- aliveRobots
+                                         , distanceBetween (objPos (robotBase r)) pos <= explosiveBarrelRadius ]
+                          applyDmg r =
+                            let hp' = max 0 (robotHealth r - explosiveBarrelDamage)
+                                r'  = if hp' <= 0 then r { robotHealth = hp', robotState = Destroyed, robotBase = (robotBase r) { objVel = (0,0) } }
+                                                   else r { robotHealth = hp' }
+                            in r'
+                          damaged = map applyDmg affected
+                          boom = Explosion pos 0 Impact
+                      in (Nothing, [boom], damaged)
+                    else (Just obs { obstacleCountdown = Just t' }, [], [])
+                Nothing -> (Just obs, [], [])
+          in (keepObstacle, explosionsOut, robotsAfterDamage)
+        _ -> (Just obs, [], [])
+
+      -- Procesa todos los obstáculos y acumula resultados
+      (keptObsMaybes, newExplosions, dmgRobots) = unzip3 (map stepObstacle (obstacles gs))
+      keptObs = [o | Just o <- keptObsMaybes]
+
+      -- Mezcla robots dañados con los no afectados
+      dmgIds = [ objId (robotBase r) | r <- concat dmgRobots ]
+      mergeRobot r = case lookup (objId (robotBase r)) [(objId (robotBase d), d) | d <- concat dmgRobots] of
+                       Just d  -> d
+                       Nothing -> r
+      robots' = map mergeRobot (robots gs)
+
+  in gs { obstacles = keptObs, explosions = explosions gs ++ concat newExplosions, robots = robots' }
 
 -- | Mueve un robot según su velocidad y limita su posición dentro de la pantalla.
 updateRobotPosition :: Float -> Robot -> Robot
@@ -88,7 +141,39 @@ handleCollisions gs =
       activeRobots = filter (\r -> robotState r == Alive) (robots gs')
       objs = map robotBase activeRobots ++ map projBase (projectiles gs')
       gs'' = applyCollisionEffects (CollisionSAT.checkCollisions objs) gs'
-  in detectAndResolveProjectileObstacleCollisions gs''
+      -- Daño por colisiones con barricadas
+      gs''' = applyBarricadeCollisions gs''
+  in detectAndResolveProjectileObstacleCollisions gs'''
+
+-- | Aplica daño fijo a robots que colisionen con barricadas.
+--   Usa memoria por robot-obstáculo para registrar el último impacto y evitar aplicar daño en todos los frames.
+applyBarricadeCollisions :: GameState -> GameState
+applyBarricadeCollisions gs =
+  let aliveRobots = filter (\r -> robotState r == Alive) (robots gs)
+      barricades  = filter (\o -> obstacleType o == BarricadeObstacle) (obstacles gs)
+
+      applyForRobot :: Robot -> Robot
+      applyForRobot r = foldl applyIfHit r barricades
+        where
+          applyIfHit accR obs =
+            if checkCollision (objShape (robotBase accR)) (obstacleShape obs)
+              then
+                let key = "barricade_last_hit_" ++ show (obstacleId obs)
+                    mVal = get key (robotMemory accR)
+                    canHit = case mVal of
+                               Just (MemFloat t) -> (time gs - t) > 0.4
+                               _                 -> True
+                in if canHit
+                     then
+                       let hp' = max 0 (robotHealth accR - barricadeCollisionDamage)
+                           mem' = set key (MemFloat (time gs)) (robotMemory accR)
+                           accR' = accR { robotHealth = hp', robotMemory = mem' }
+                       in if hp' <= 0 then accR' { robotState = Destroyed, robotBase = (robotBase accR') { objVel = (0,0) } } else accR'
+                     else accR
+              else accR
+
+      updatedRobots = map applyForRobot aliveRobots ++ filter (\r -> robotState r == Destroyed) (robots gs)
+  in gs { robots = updatedRobots }
 
 -- | Detección y resolución de colisiones entre robots.
 --   Aplica daño y los separa físicamente.
@@ -176,13 +261,24 @@ detectAndResolveProjectileObstacleCollisions gs =
       obss = obstacles gs
       
       -- Verifica cada proyectil contra cada obstáculo
-      collidingProjectileIds = [ objId (projBase p)
-                               | p <- projs
-                               , obs <- obss
-                               , checkCollision (objShape (projBase p)) (obstacleShape obs)
-                               ]
+      collidingPairs = [ (objId (projBase p), obstacleId obs)
+                       | p <- projs
+                       , obs <- obss
+                       , checkCollision (objShape (projBase p)) (obstacleShape obs)
+                       ]
+      collidingProjectileIds = [ pid | (pid, _) <- collidingPairs ]
+      hitObstacleIds = [ oid | (_, oid) <- collidingPairs ]
       
       -- Elimina los proyectiles que colisionaron con obstáculos
       filteredProjectiles = filter (\p -> objId (projBase p) `notElem` collidingProjectileIds) projs
       
-  in gs { projectiles = filteredProjectiles }
+      -- Activa la cuenta atrás en barriles explosivos golpeados por proyectil
+      updatedObstacles = map (\obs ->
+                                if obstacleId obs `elem` hitObstacleIds && obstacleType obs == ExplosiveBarrel
+                                   then case obstacleCountdown obs of
+                                          Nothing -> obs { obstacleCountdown = Just explosiveBarrelCountdown }
+                                          justT  -> obs { obstacleCountdown = justT }
+                                   else obs)
+                           obss
+      
+  in gs { projectiles = filteredProjectiles, obstacles = updatedObstacles }

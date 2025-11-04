@@ -52,3 +52,17 @@ robotCollisionRadius = 15.0
 
 robotCollisionDamage :: Int
 robotCollisionDamage = 2
+
+-- ---------- Daño por colisión con barricada ----------
+barricadeCollisionDamage :: Int
+barricadeCollisionDamage = 20
+
+-- ---------- Barril explosivo ----------
+explosiveBarrelRadius :: Float
+explosiveBarrelRadius = 150.0
+
+explosiveBarrelDamage :: Int
+explosiveBarrelDamage = 30
+
+explosiveBarrelCountdown :: Float
+explosiveBarrelCountdown = 3.0

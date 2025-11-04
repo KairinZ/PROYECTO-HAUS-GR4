@@ -71,8 +71,8 @@ data GameMap = GameMap
   , mapWalls  :: [Polygon]
   } deriving (Show, Eq)
 
--- | Tipo de obstáculo (caja o valla)
-data ObstacleType = CrateObstacle | FenceObstacle
+-- | Tipo de obstáculo (caja, valla, barricada, barril explosivo)
+data ObstacleType = CrateObstacle | FenceObstacle | BarricadeObstacle | ExplosiveBarrel
   deriving (Eq, Show)
 
 -- | Obstáculo estático del juego
@@ -84,4 +84,5 @@ data Obstacle = Obstacle
   , obstacleHeight :: Float
   , obstacleShape  :: Polygon
   , obstacleType   :: ObstacleType
+  , obstacleCountdown :: Maybe Float -- Cuenta atrás para obstáculo explosivo; Nothing si no aplica o no activado
   } deriving (Show, Eq)

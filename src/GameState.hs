@@ -101,7 +101,14 @@ createInitialObstacles =
       fence2 = createObstacle 5 (0, 270) fenceWidth fenceHeight FenceObstacle
       fence3 = createObstacle 6 (-100, 200) fenceWidth fenceHeight FenceObstacle
       
-  in [crate1, crate2, crate3, fence1, fence2, fence3]
+      -- 2 barricadas de madera en posiciones específicas, con tamaño de caja
+      barricade1 = createObstacle 7 (200, 50) crateWidth crateHeight BarricadeObstacle
+      barricade2 = createObstacle 8 (-220, -50) crateWidth crateHeight BarricadeObstacle
+
+      -- 1 barril explosivo inicial
+      barrel1 = createObstacle 9 (0, -120) crateWidth crateHeight ExplosiveBarrel
+      
+  in [crate1, crate2, crate3, fence1, fence2, fence3, barricade1, barricade2, barrel1]
 
 -- | Crea un obstáculo en la posición especificada.
 createObstacle :: Int -> Point -> Float -> Float -> ObstacleType -> Obstacle
@@ -113,4 +120,5 @@ createObstacle obsId pos w h obsType =
     , obstacleHeight = h
     , obstacleShape  = createRectanglePolygon pos w h 0  -- Los obstáculos no rotan (ángulo 0)
     , obstacleType   = obsType
+    , obstacleCountdown = Nothing
     }

@@ -121,6 +121,8 @@ drawObstacle Assets{..} obs =
       obstaclePic = case obstacleType obs of
                      CrateObstacle -> crateWood
                      FenceObstacle -> fenceRed
+                     BarricadeObstacle -> barricadeWood
+                     ExplosiveBarrel -> barrelBlack
       
       -- Escala el sprite para que coincida con el tamaño del obstáculo
       -- Los sprites se escalan proporcionalmente al tamaño definido
