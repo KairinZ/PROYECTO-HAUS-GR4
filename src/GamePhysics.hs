@@ -5,7 +5,7 @@ module GamePhysics where
 import GameState
 import Entities
 import ExplosionTypes (Explosion(..), ExplosionType(Impact, Death))
-import GameConstants (robotWidth, robotHeight, projectileWidth, projectileHeight, screenWidth, screenHeight, robotCollisionRadius, robotCollisionDamage, barricadeCollisionDamage, explosiveBarrelRadius, explosiveBarrelDamage, explosiveBarrelCountdown)
+import GameConstants (robotWidth, robotHeight, projectileWidth, projectileHeight, screenWidth, screenHeight, robotCollisionRadius, robotCollisionDamage, barricadeCollisionDamage, explosiveBarrelRadius, explosiveBarrelDamage, explosiveBarrelCountdown, explosiveBarrelTriggerRadius)
 import CollisionSAT
 import Physics (updatePosition)
 import Data.Maybe (mapMaybe)
@@ -54,8 +54,10 @@ processExplosiveBarrels dt gs =
         ExplosiveBarrel ->
           let pos = obstaclePos obs
               -- ¿Activar cuenta atrás por primera colisión?
+              isColliding = any (\r -> checkCollision (objShape (robotBase r)) (obstacleShape obs)) aliveRobots
+              isNear      = any (\r -> distanceBetween (objPos (robotBase r)) pos <= explosiveBarrelTriggerRadius) aliveRobots
               triggered = case obstacleCountdown obs of
-                            Nothing -> any (\r -> checkCollision (objShape (robotBase r)) (obstacleShape obs)) aliveRobots
+                            Nothing -> isColliding || isNear
                             _       -> False
               countdown0 = case obstacleCountdown obs of
                              Nothing | triggered -> Just explosiveBarrelCountdown
@@ -109,7 +111,7 @@ updateRobotPosition dt gs r
           solid   = filter (\o -> obstacleType o /= OilSpillObstacle) (obstacles gs)
           hitSolid= any (\o -> checkCollision newShape (obstacleShape o)) solid
           hitOil  = any (\o -> obstacleType o == OilSpillObstacle && checkCollision newShape (obstacleShape o)) (obstacles gs)
-          r'      = if hitOil && robotStunTime r <= 0 then r { robotStunTime = 2.0 } else r
+          r'      = if hitOil && robotStunTime r <= 0 && robotStunImmunity r <= 0 then r { robotStunTime = 2.0 } else r
           clamped = clampPosition newPos
           finalB  = if hitSolid then base0 else base1 { objPos = clamped, objShape = newShape }
       in r' { robotBase = finalB }
@@ -296,9 +298,14 @@ updateRobotStun dt r
   | robotState r /= Alive = r
   | robotStunTime r > 0.0 = 
       let newStun = max 0 (robotStunTime r - dt)
+          newImmunity = max 0 (robotStunImmunity r - dt) -- Always decrement immunity
           base0   = robotBase r
           base'   = base0 { objVel = (0,0), objDir = objDir base0 + 6*dt }
           turret0 = robotTurret r
           turret' = turret0 { turretDir = turretDir turret0 + 6*dt } -- Rotate turret as well
-      in r { robotStunTime = newStun, robotBase = base', robotTurret = turret' }
-  | otherwise = r { robotStunTime = max 0 (robotStunTime r - dt) }
+          r_after_stun_time = r { robotStunTime = newStun, robotStunImmunity = newImmunity, robotBase = base', robotTurret = turret'}
+      in if newStun == 0.0 && robotStunTime r > 0.0 -- If stun just ended
+            then r_after_stun_time { robotStunImmunity = 3.0 } -- Apply immunity
+            else r_after_stun_time
+  | otherwise = r { robotStunImmunity = max 0 (robotStunImmunity r - dt)
+                    , robotStunTime = max 0 (robotStunTime r - dt) } -- Still decrement stun time, even if 0, for consistency

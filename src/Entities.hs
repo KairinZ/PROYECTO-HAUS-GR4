@@ -39,6 +39,7 @@ data Robot = Robot
   , robotMemory    :: Memory
   , robotState     :: RobotState -- Nuevo: estado del robot (Alive/Destroyed)
   , robotStunTime  :: Float  -- tiempo restante de stun en segundos
+  , robotStunImmunity :: Float -- tiempo restante de inmunidad a stun en segundos
   } deriving (Show, Eq)
 
 -- | Estado de un robot: vivo o destruido.

@@ -6,7 +6,7 @@ import Graphics.Gloss hiding (Polygon)
 import qualified Graphics.Gloss.Interface.Pure.Game as Gloss (text)
 import GameState
 import Entities (Robot(..), RobotState(..), Projectile(..), GameObject(..), RobotTurret(..), Obstacle(..), ObstacleType(..))
-import GameConstants (screenWidth, screenHeight, robotWidth, robotHeight, turretWidth, turretHeight, projectileWidth, projectileHeight, robotOriginalWidth, robotOriginalHeight)
+import GameConstants (screenWidth, screenHeight, robotWidth, robotHeight, turretWidth, turretHeight, projectileWidth, projectileHeight, robotOriginalWidth, robotOriginalHeight, explosiveBarrelCountdown, barrelBarWidth, barrelBarHeight)
 import qualified Geometry as G
 import GameUtils (getColorForId)
 import Data.List (find, partition)
@@ -131,7 +131,27 @@ drawObstacle Assets{..} obs =
       -- Asumimos un tamaño base aproximado de 64x64 píxeles para los sprites
       scaleX = w / 64.0
       scaleY = h / 64.0
-  in translate x y $ scale scaleX scaleY obstaclePic
+
+      countdownBar = case obstacleCountdown obs of
+        Just t | t > 0.0 ->
+          let progress = t / explosiveBarrelCountdown
+              barColor
+                | progress > 0.66 = green
+                | progress > 0.33 = yellow
+                | otherwise       = red
+              
+              -- Base bar (background)
+              backgroundBar = color (makeColor 0.2 0.2 0.2 1.0) $ rectangleSolid barrelBarWidth barrelBarHeight
+              
+              -- Foreground bar (progress)
+              foregroundBar = color barColor $ rectangleSolid (barrelBarWidth * progress) barrelBarHeight
+              
+              -- Combine and position the bars
+              bars = translate (-(barrelBarWidth - barrelBarWidth * progress) / 2) 0 $ pictures [foregroundBar]
+          in [ translate 0 25 $ pictures [backgroundBar, bars] ] -- Position above barrel
+        _ -> []
+
+  in translate x y $ pictures ([ scale scaleX scaleY obstaclePic ] ++ countdownBar)
 
 -- | Dibuja un efecto visual sobre el robot si está stuneado.
 drawStunEffect :: Assets -> GameState -> Robot -> [Picture]

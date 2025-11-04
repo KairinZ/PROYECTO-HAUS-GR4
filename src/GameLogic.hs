@@ -149,6 +149,7 @@ createRobot i pos dir aiType =
       , robotAIType    = aiType
       , robotState     = Alive
       , robotStunTime  = 0.0 -- Initialize stun time to 0.0
+      , robotStunImmunity = 0.0 -- Initialize stun immunity to 0.0
       }
 
 -- | crea un polígono de robot en (pos, dir)
