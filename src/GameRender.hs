@@ -19,21 +19,21 @@ drawGame w@GameWorld{..} =
   let gs = gameState
       (impactExplosions, deathExplosions) = partition ((== Impact) . expType) (explosions gs)
   in pictures $
-     [ scale (fromIntegral screenWidth / 1024) (fromIntegral screenHeight / 768) (arenaPic (assets gs)) ] -- Fondo
+     [ scale (fromIntegral tournamentAreaWidth / 1024) (fromIntegral tournamentAreaHeight / 768) (arenaPic (assets gs)) ] -- Fondo
   ++ map (drawObstacle (assets gs)) (obstacles gs) -- Obstáculos (dibujados antes que robots para que queden detrás)
   ++ map (drawExplosion (assets gs)) impactExplosions -- Explosiones de impacto
   ++ map (drawRobotBody (assets gs) gs) (robots gs)
   ++ map (drawProjectile (assets gs)) (projectiles gs)
   ++ map (drawExplosion (assets gs)) deathExplosions  -- Explosiones de muerte
-  ++ [drawGameOverMessage gs tournamentCount]
-  ++ [drawMapBoundary]
+  ++ [drawGameOverMessage gs tournamentCount numTournaments]
+  ++ [drawMapBoundary tournamentAreaWidth tournamentAreaHeight]
 
 -- | Dibuja el mensaje del ganador o empate al terminar la partida.
 --   Solo muestra el mensaje de "Press R" después de completar 5 torneos.
-drawGameOverMessage :: GameState -> Int -> Picture
-drawGameOverMessage gs tournamentCount
+drawGameOverMessage :: GameState -> Int -> Int -> Picture
+drawGameOverMessage gs tournamentCount numTournaments
   | countActiveRobots (robots gs) > 1 = blank
-  | tournamentCount < 5 = blank  -- No mostrar mensaje si aún no se completaron 5 torneos
+  | tournamentCount < numTournaments = blank  -- No mostrar mensaje si aún no se completaron todos los torneos
   | otherwise =
       let winnerTxt = case find (\r -> robotHealth r > 0) (robots gs) of
                         Just r  -> "Robot " ++ show (objId (robotBase r)) ++ " WINS!"
@@ -111,8 +111,8 @@ drawExplosion Assets{..} Explosion{..} =
   in translate x y scaledFrame
 
 -- | Dibuja el límite del mapa.
-drawMapBoundary :: Picture
-drawMapBoundary = color white $ rectangleWire (fromIntegral screenWidth) (fromIntegral screenHeight)
+drawMapBoundary :: Int -> Int -> Picture
+drawMapBoundary areaWidth areaHeight = color white $ rectangleWire (fromIntegral areaWidth) (fromIntegral areaHeight)
 
 -- | Dibuja un obstáculo según su tipo.
 drawObstacle :: Assets -> Obstacle -> Picture

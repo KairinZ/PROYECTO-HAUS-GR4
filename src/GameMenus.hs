@@ -95,7 +95,7 @@ drawConfigScreen GameConfig{..} = pictures $
 --     - Aumentar o reducir el número de bots
 --     - Cambiar el tipo de IA de cada uno
 --     - Lanzar la partida
-handleConfigEvents :: Assets -> (Assets -> GameConfig -> GameWorld) -> Event -> GameWorld -> GameWorld
+handleConfigEvents :: Assets -> (Assets -> GameConfig -> Int -> Int -> Float -> Int -> GameWorld -> GameWorld) -> Event -> GameWorld -> GameWorld
 handleConfigEvents gameAssets startGameFromConfigFunc (EventKey (MouseButton LeftButton) Down _ (mx,my)) w@GameWorld{..} =
   let GameConfig{..} = config
 
@@ -129,7 +129,7 @@ handleConfigEvents gameAssets startGameFromConfigFunc (EventKey (MouseButton Lef
 
   -- Si se pulsa el botón "Launch Tournament", se inicia la partida.
   in if isClickInBox (mx,my) 0 (-250) 300 50
-     then startGameFromConfigFunc gameAssets newCfg
+     then startGameFromConfigFunc gameAssets newCfg tournamentAreaWidth tournamentAreaHeight maxTournamentDuration numTournaments w
      else w { config = newCfg }
 handleConfigEvents _ _ _ w = w
 

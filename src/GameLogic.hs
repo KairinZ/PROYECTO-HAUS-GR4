@@ -23,30 +23,36 @@ import Control.Monad (foldM)
 
 -- | Crea un nuevo 'GameWorld' a partir de la configuración seleccionada.
 --   Inicializa el 'GameState' con los robots y cambia a la fase Playing.
-startGameFromConfig :: Assets -> GameConfig -> GameWorld
-startGameFromConfig gameAssets conf =
-  let newGS = unsafePerformIO $ createInitialGameStateFromConfigIO gameAssets conf
-  in initialWorld
-       { phase           = Playing
-       , gameState       = newGS
-       , config          = conf
-       , nextId          = numRobots conf + 1
-       , tournamentCount = 0  -- Inicializar contador de torneos en 0
+startGameFromConfig :: Assets -> GameConfig -> Int -> Int -> Float -> Int -> GameWorld -> GameWorld
+startGameFromConfig gameAssets conf areaWidth areaHeight maxDuration numTourns w@GameWorld{..} =
+  let areaWidthF = fromIntegral areaWidth
+      areaHeightF = fromIntegral areaHeight
+      newGS = unsafePerformIO $ createInitialGameStateFromConfigIO gameAssets conf areaWidthF areaHeightF
+  in w
+       { phase                 = Playing
+       , gameState             = newGS
+       , config                = conf
+       , nextId                = numRobots conf + 1
+       , tournamentCount       = 0  -- Inicializar contador de torneos en 0
+       , tournamentAreaWidth   = areaWidth
+       , tournamentAreaHeight  = areaHeight
+       , maxTournamentDuration = maxDuration
+       , numTournaments        = numTourns
        }
 
 -- | Construye el 'GameState' inicial de la partida con posiciones aleatorias.
-createInitialGameStateFromConfigIO :: Assets -> GameConfig -> IO GameState
-createInitialGameStateFromConfigIO gameAssets GameConfig{..} =
+createInitialGameStateFromConfigIO :: Assets -> GameConfig -> Float -> Float -> IO GameState
+createInitialGameStateFromConfigIO gameAssets GameConfig{..} areaWidth areaHeight =
   do
     let robotDiagonalHalf = sqrt (robotWidth**2 + robotHeight**2) / 2
-        minX = - (fromIntegral screenWidth  / 2) + robotDiagonalHalf
-        maxX =   (fromIntegral screenWidth  / 2) - robotDiagonalHalf
-        minY = - (fromIntegral screenHeight / 2) + robotDiagonalHalf
-        maxY =   (fromIntegral screenHeight / 2) - robotDiagonalHalf
+        minX = - (areaWidth  / 2) + robotDiagonalHalf
+        maxX =   (areaWidth  / 2) - robotDiagonalHalf
+        minY = - (areaHeight / 2) + robotDiagonalHalf
+        maxY =   (areaHeight / 2) - robotDiagonalHalf
 
     let fixedObstacles = createInitialFixedObstacles
     let fixedPolys = map obstacleGameObjectShape fixedObstacles
-    let gmap = gameMap (emptyGameState gameAssets)
+    let gmap = gameMap (emptyGameState gameAssets areaWidth areaHeight)
 
     -- genera robots válidos uno a uno
     let genRobots 0 accPos accPolys = pure (reverse accPos)
@@ -62,7 +68,7 @@ createInitialGameStateFromConfigIO gameAssets GameConfig{..} =
     -- Asegúrate de usar fixedObstacles y luego genera random obstacles evitando fixedPolys ++ robotsPolys.
     (randomObstacles, nextIdAfterRandom) <- generateRandomObstaclesIO (length fixedObstacles + length rs + 1) gmap (fixedPolys ++ map objShape (map robotBase rs))
 
-    return $ (emptyGameState gameAssets) { robots = rs, obstacles = fixedObstacles ++ randomObstacles }
+    return $ (emptyGameState gameAssets areaWidth areaHeight) { robots = rs, obstacles = fixedObstacles ++ randomObstacles }
 
 -- | Genera una lista de obstáculos aleatorios (charcos de aceite y barriles)
 --   que no se superpongan con otros elementos existentes.

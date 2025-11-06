@@ -30,21 +30,25 @@ data GameState = GameState
 --   Contiene la fase del juego, el estado de simulación,
 --   la configuración activa y un contador de IDs para proyectiles.
 data GameWorld = GameWorld
-  { phase           :: GamePhase    -- ^ Fase actual (menú, configuración o partida)
-  , gameState       :: GameState    -- ^ Estado del juego (robots, balas, explosiones)
-  , config          :: GameConfig   -- ^ Configuración activa de la partida
-  , nextId          :: Int          -- ^ Siguiente ID disponible para proyectiles o robots
-  , tournamentCount:: Int          -- ^ Número de torneos completados (0-5)
+  { phase                 :: GamePhase    -- ^ Fase actual (menú, configuración o partida)
+  , gameState             :: GameState    -- ^ Estado del juego (robots, balas, explosiones)
+  , config                :: GameConfig   -- ^ Configuración activa de la partida
+  , nextId                :: Int          -- ^ Siguiente ID disponible para proyectiles o robots
+  , tournamentCount       :: Int          -- ^ Número de torneos completados
+  , tournamentAreaWidth   :: Int          -- ^ Ancho del área de torneo
+  , tournamentAreaHeight  :: Int          -- ^ Alto del área de torneo
+  , maxTournamentDuration :: Float        -- ^ Duración máxima de cada torneo (segundos)
+  , numTournaments        :: Int          -- ^ Número total de torneos a ejecutar
   }
 
-emptyGameState :: Assets -> GameState
-emptyGameState gameAssets = GameState
+emptyGameState :: Assets -> Float -> Float -> GameState
+emptyGameState gameAssets areaWidth areaHeight = GameState
   { robots      = []
   , projectiles = []
   , explosions  = []
   , obstacles   = []
   , time        = 0
-  , gameMap     = createGameMap (fromIntegral screenWidth) (fromIntegral screenHeight)
+  , gameMap     = createGameMap areaWidth areaHeight
   , assets      = gameAssets
   }
 
@@ -68,14 +72,18 @@ createGameMap width height =
 
 initialWorld :: GameWorld
 initialWorld = GameWorld
-  { phase           = MainMenu
-  , gameState       = error "GameState must be initialized with assets."
-  , config          = GameConfig
+  { phase                 = MainMenu
+  , gameState             = error "GameState must be initialized with assets."
+  , config                = GameConfig
     { numRobots  = 2
     , botConfigs = [BotConfig (Hunter { hunterDetectionRange = 400.0 }), BotConfig (Evasive { evasiveDetectionRange = 200.0 })]
     }
-  , nextId          = 1
-  , tournamentCount = 0
+  , nextId                = 1
+  , tournamentCount       = 0
+  , tournamentAreaWidth   = 800
+  , tournamentAreaHeight = 600
+  , maxTournamentDuration = 300.0
+  , numTournaments        = 5
   }
 
 countActiveRobots :: [Robot] -> Int

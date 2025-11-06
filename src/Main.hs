@@ -30,6 +30,9 @@ import GameRender
 import CollisionSAT
 import Assets -- Importamos Assets
 import GameState (GameState(..), GameWorld(..), emptyGameState, initialWorld) -- Importamos GameWorld y initialWorld
+import ConfigLoader (loadConfig, TournamentConfig(..)) -- Importamos el cargador de configuración
+import GameTypes (GameConfig(..), BotConfig(..)) -- Importamos tipos de configuración
+import Entities (AIType(..)) -- Importamos tipos de IA
 
 -- Librerías estándar
 import Prelude hiding (Left, Right)
@@ -47,11 +50,29 @@ import Prelude hiding (Left, Right)
 main :: IO ()
 main = do
   gameAssets <- loadAssets -- Cargamos los assets al inicio
+  tournamentConfig <- loadConfig -- Cargamos la configuración del archivo
+  
+  -- Crear GameConfig desde TournamentConfig
+  let gameConfig = GameConfig
+        { numRobots = configNumBots tournamentConfig
+        , botConfigs = map BotConfig (configBotTypes tournamentConfig)
+        }
+  
+  -- Crear GameWorld inicial con la configuración del archivo
+  let initialWorldWithConfig = initialWorld
+        { config = gameConfig
+        , tournamentAreaWidth = configAreaWidth tournamentConfig
+        , tournamentAreaHeight = configAreaHeight tournamentConfig
+        , maxTournamentDuration = configMaxTournamentDuration tournamentConfig
+        , numTournaments = configNumTournaments tournamentConfig
+        , gameState = emptyGameState gameAssets (fromIntegral $ configAreaWidth tournamentConfig) (fromIntegral $ configAreaHeight tournamentConfig)
+        }
+  
   play
     window          -- Ventana principal
     backgroundColor -- Color de fondo
     fps             -- Fotogramas por segundo
-    (initialWorld { gameState = emptyGameState gameAssets }) -- Estado inicial del juego con assets
+    initialWorldWithConfig -- Estado inicial del juego con assets y configuración
     render          -- Función para dibujar
     handleEvent     -- Función para manejar eventos (teclado/ratón)
     updateGame      -- Función para actualizar el estado (cada tick)
@@ -78,7 +99,18 @@ render w@GameWorld{..} = case phase of
 handleEvent :: Event -> GameWorld -> GameWorld
 handleEvent ev w@GameWorld{..}
   -- Si se pulsa la tecla 'r', se reinicia completamente el juego.
-  | EventKey (Char 'r') Down _ _ <- ev = initialWorld { gameState = emptyGameState (assets gameState) }
+  | EventKey (Char 'r') Down _ _ <- ev = 
+      let gameAssets = assets gameState
+          areaWidth = fromIntegral tournamentAreaWidth
+          areaHeight = fromIntegral tournamentAreaHeight
+      in initialWorld 
+        { gameState = emptyGameState gameAssets areaWidth areaHeight
+        , config = config
+        , tournamentAreaWidth = tournamentAreaWidth
+        , tournamentAreaHeight = tournamentAreaHeight
+        , maxTournamentDuration = maxTournamentDuration
+        , numTournaments = numTournaments
+        }
   | otherwise = case phase of
       MainMenu     -> handleMenuEvents ev w      -- Eventos del menú principal
       ConfigScreen -> handleConfigEvents (assets gameState) startGameFromConfig ev w    -- Eventos en pantalla de configuración

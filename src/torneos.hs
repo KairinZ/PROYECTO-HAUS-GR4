@@ -50,18 +50,22 @@ import Control.Monad (foldM)
 runGameLogicWithAutoTournaments :: Float -> GameWorld -> GameWorld
 runGameLogicWithAutoTournaments dt w@GameWorld{..} =
   let gs = gameState
-  in if countActiveRobots (robots gs) <= 1
+      -- Verificar si el torneo ha excedido la duración máxima
+      timeExceeded = time gs >= maxTournamentDuration
+      -- Verificar si el torneo ha terminado (solo queda un robot o ninguno)
+      tournamentEnded = countActiveRobots (robots gs) <= 1
+  in if tournamentEnded || timeExceeded
         then 
           -- Torneo terminado: verificar si debemos reiniciar o detener
           -- El contador representa cuántos torneos se han completado
-          -- Queremos ejecutar 5 torneos (0, 1, 2, 3, 4), así que reiniciamos si < 4
-          if tournamentCount < 4
+          -- Reiniciamos si tournamentCount < (numTournaments - 1)
+          if tournamentCount < (numTournaments - 1)
             then 
-              -- Aún no se han completado 5 torneos: reiniciar automáticamente
+              -- Aún no se han completado todos los torneos: reiniciar automáticamente
               restartTournament w
             else
-              -- Ya se completaron 5 torneos: incrementar contador a 5 y detener el juego
-              w { tournamentCount = 5 }
+              -- Ya se completaron todos los torneos: incrementar contador y detener el juego
+              w { tournamentCount = numTournaments }
         else
           -- Torneo en curso: continuar con la lógica normal del juego
           let (actions, gs0) = getAIActions gs dt              -- 1️⃣ Obtener acciones de IA
@@ -77,9 +81,11 @@ runGameLogicWithAutoTournaments dt w@GameWorld{..} =
 restartTournament :: GameWorld -> GameWorld
 restartTournament w@GameWorld{..} =
   let gameAssets = assets gameState
+      areaWidthF = fromIntegral tournamentAreaWidth
+      areaHeightF = fromIntegral tournamentAreaHeight
       -- Crear un nuevo GameState con la misma configuración
-      newGS = unsafePerformIO $ createInitialGameStateFromConfigIO gameAssets config
-  in initialWorld
+      newGS = unsafePerformIO $ createInitialGameStateFromConfigIO gameAssets config areaWidthF areaHeightF
+  in w
        { phase           = Playing
        , gameState       = newGS
        , config          = config  -- Mantener la misma configuración
@@ -195,18 +201,18 @@ applyAction dt (r, mProj, currId) action = case action of
   AI.Idle -> (r, mProj, currId)
 
 -- | Construye el 'GameState' inicial de la partida con posiciones aleatorias.
-createInitialGameStateFromConfigIO :: Assets -> GameConfig -> IO GameState
-createInitialGameStateFromConfigIO gameAssets GameConfig{..} =
+createInitialGameStateFromConfigIO :: Assets -> GameConfig -> Float -> Float -> IO GameState
+createInitialGameStateFromConfigIO gameAssets GameConfig{..} areaWidth areaHeight =
   do
     let robotDiagonalHalf = sqrt (robotWidth**2 + robotHeight**2) / 2
-        minX = - (fromIntegral screenWidth  / 2) + robotDiagonalHalf
-        maxX =   (fromIntegral screenWidth  / 2) - robotDiagonalHalf
-        minY = - (fromIntegral screenHeight / 2) + robotDiagonalHalf
-        maxY =   (fromIntegral screenHeight / 2) - robotDiagonalHalf
+        minX = - (areaWidth  / 2) + robotDiagonalHalf
+        maxX =   (areaWidth  / 2) - robotDiagonalHalf
+        minY = - (areaHeight / 2) + robotDiagonalHalf
+        maxY =   (areaHeight / 2) - robotDiagonalHalf
 
     let fixedObstacles = createInitialFixedObstacles
     let fixedPolys = map obstacleGameObjectShape fixedObstacles
-    let gmap = gameMap (emptyGameState gameAssets)
+    let gmap = gameMap (emptyGameState gameAssets areaWidth areaHeight)
 
     -- genera robots válidos uno a uno
     let genRobots 0 accPos accPolys = pure (reverse accPos)
@@ -222,7 +228,7 @@ createInitialGameStateFromConfigIO gameAssets GameConfig{..} =
     -- Asegúrate de usar fixedObstacles y luego genera random obstacles evitando fixedPolys ++ robotsPolys.
     (randomObstacles, nextIdAfterRandom) <- generateRandomObstaclesIO (length fixedObstacles + length rs + 1) gmap (fixedPolys ++ map objShape (map robotBase rs))
 
-    return $ (emptyGameState gameAssets) { robots = rs, obstacles = fixedObstacles ++ randomObstacles }
+    return $ (emptyGameState gameAssets areaWidth areaHeight) { robots = rs, obstacles = fixedObstacles ++ randomObstacles }
 
 -- | Genera una lista de obstáculos aleatorios (charcos de aceite y barriles)
 --   que no se superpongan con otros elementos existentes.
@@ -251,10 +257,12 @@ tryPlaceObstacle currentId type_ width height gameMap existingShapes = do
   findValidPosition maxAttempts
     where
       maxAttempts = 100
-      minX = -(fromIntegral screenWidth / 2) + width / 2
-      maxX = (fromIntegral screenWidth / 2) - width / 2
-      minY = -(fromIntegral screenHeight / 2) + height / 2
-      maxY = (fromIntegral screenHeight / 2) / 2 -- Limit Y to upper half initially for testing
+      mapW = mapWidth gameMap
+      mapH = mapHeight gameMap
+      minX = -(mapW / 2) + width / 2
+      maxX = (mapW / 2) - width / 2
+      minY = -(mapH / 2) + height / 2
+      maxY = (mapH / 2) / 2 -- Limit Y to upper half initially for testing
 
       findValidPosition :: Int -> IO (Obstacle, Int)
       findValidPosition 0 = error $ "Could not find a valid position for a " ++ show type_ ++ " obstacle after " ++ show maxAttempts ++ " attempts."
@@ -312,10 +320,12 @@ randomValidRobotPoseIO :: Int -> GameMap -> [G.Polygon] -> IO (G.Point, G.Angle)
 randomValidRobotPoseIO maxAttempts gmap existingPolys = try maxAttempts
   where
     robotDiag = sqrt (robotWidth**2 + robotHeight**2) / 2
-    minX = - (fromIntegral screenWidth  / 2) + robotDiag
-    maxX =   (fromIntegral screenWidth  / 2) - robotDiag
-    minY = - (fromIntegral screenHeight / 2) + robotDiag
-    maxY =   (fromIntegral screenHeight / 2) - robotDiag
+    mapW = mapWidth gmap
+    mapH = mapHeight gmap
+    minX = - (mapW / 2) + robotDiag
+    maxX =   (mapW / 2) - robotDiag
+    minY = - (mapH / 2) + robotDiag
+    maxY =   (mapH / 2) - robotDiag
     try 0 = error "Could not sample a valid spawn for robot"
     try n = do
       x <- randomRIO (minX, maxX)
