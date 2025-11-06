@@ -2,6 +2,6 @@ num_bots: 3
 bot_types: Hunter, Evasive, Evasive
 area_width: 1000
 area_height: 800
-max_tournament_duration: 5.0
+max_tournament_duration: 30.0
 num_tournaments: 3
 
