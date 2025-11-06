@@ -27,10 +27,11 @@ startGameFromConfig :: Assets -> GameConfig -> GameWorld
 startGameFromConfig gameAssets conf =
   let newGS = unsafePerformIO $ createInitialGameStateFromConfigIO gameAssets conf
   in initialWorld
-       { phase     = Playing
-       , gameState = newGS
-       , config    = conf
-       , nextId    = numRobots conf + 1
+       { phase           = Playing
+       , gameState       = newGS
+       , config          = conf
+       , nextId          = numRobots conf + 1
+       , tournamentCount = 0  -- Inicializar contador de torneos en 0
        }
 
 -- | Construye el 'GameState' inicial de la partida con posiciones aleatorias.

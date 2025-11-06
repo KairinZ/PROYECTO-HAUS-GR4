@@ -30,10 +30,11 @@ data GameState = GameState
 --   Contiene la fase del juego, el estado de simulación,
 --   la configuración activa y un contador de IDs para proyectiles.
 data GameWorld = GameWorld
-  { phase     :: GamePhase    -- ^ Fase actual (menú, configuración o partida)
-  , gameState :: GameState    -- ^ Estado del juego (robots, balas, explosiones)
-  , config    :: GameConfig   -- ^ Configuración activa de la partida
-  , nextId    :: Int          -- ^ Siguiente ID disponible para proyectiles o robots
+  { phase           :: GamePhase    -- ^ Fase actual (menú, configuración o partida)
+  , gameState       :: GameState    -- ^ Estado del juego (robots, balas, explosiones)
+  , config          :: GameConfig   -- ^ Configuración activa de la partida
+  , nextId          :: Int          -- ^ Siguiente ID disponible para proyectiles o robots
+  , tournamentCount:: Int          -- ^ Número de torneos completados (0-5)
   }
 
 emptyGameState :: Assets -> GameState
@@ -67,13 +68,14 @@ createGameMap width height =
 
 initialWorld :: GameWorld
 initialWorld = GameWorld
-  { phase     = MainMenu
-  , gameState = error "GameState must be initialized with assets."
-  , config    = GameConfig
+  { phase           = MainMenu
+  , gameState       = error "GameState must be initialized with assets."
+  , config          = GameConfig
     { numRobots  = 2
     , botConfigs = [BotConfig (Hunter { hunterDetectionRange = 400.0 }), BotConfig (Evasive { evasiveDetectionRange = 200.0 })]
     }
-  , nextId    = 1
+  , nextId          = 1
+  , tournamentCount = 0
   }
 
 countActiveRobots :: [Robot] -> Int

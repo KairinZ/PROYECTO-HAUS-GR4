@@ -24,6 +24,7 @@ import GameTypes (GamePhase(..), GameConfig(..))
 import GameConstants
 import GameMenus
 import GameLogic
+import Torneos (runGameLogicWithAutoTournaments)
 import GamePhysics
 import GameRender
 import CollisionSAT
@@ -67,10 +68,10 @@ main = do
 -- | Renderiza la escena según la fase actual del juego.
 --   Devuelve una 'Picture' que Gloss mostrará en pantalla.
 render :: GameWorld -> Picture
-render GameWorld{..} = case phase of
+render w@GameWorld{..} = case phase of
   MainMenu     -> drawMainMenu               -- Pantalla principal
   ConfigScreen -> drawConfigScreen config    -- Pantalla de configuración
-  Playing      -> drawGame gameState         -- Juego activo (combate)
+  Playing      -> drawGame w                 -- Juego activo (combate)
 
 -- | Gestiona los eventos de entrada (ratón, teclado) según la fase.
 --   La tecla 'r' reinicia el juego a su estado inicial.
@@ -88,6 +89,6 @@ handleEvent ev w@GameWorld{..}
 updateGame :: Float -> GameWorld -> GameWorld
 updateGame dt w@GameWorld{..} =
   case phase of
-    Playing -> runGameLogic dt w   -- Avanza la simulación
+    Playing -> runGameLogicWithAutoTournaments dt w   -- Avanza la simulación con torneos automáticos
     _       -> w                   -- En menús, no cambia nada
 

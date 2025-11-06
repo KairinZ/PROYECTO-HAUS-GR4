@@ -14,9 +14,10 @@ import Assets (Assets(..))
 import ExplosionTypes (Explosion(..), ExplosionType(..)) -- Importamos Explosion de ExplosionTypes
 
 -- | Dibuja el estado actual de la partida.
-drawGame :: GameState -> Picture
-drawGame gs =
-  let (impactExplosions, deathExplosions) = partition ((== Impact) . expType) (explosions gs)
+drawGame :: GameWorld -> Picture
+drawGame w@GameWorld{..} =
+  let gs = gameState
+      (impactExplosions, deathExplosions) = partition ((== Impact) . expType) (explosions gs)
   in pictures $
      [ scale (fromIntegral screenWidth / 1024) (fromIntegral screenHeight / 768) (arenaPic (assets gs)) ] -- Fondo
   ++ map (drawObstacle (assets gs)) (obstacles gs) -- Obstáculos (dibujados antes que robots para que queden detrás)
@@ -24,13 +25,15 @@ drawGame gs =
   ++ map (drawRobotBody (assets gs) gs) (robots gs)
   ++ map (drawProjectile (assets gs)) (projectiles gs)
   ++ map (drawExplosion (assets gs)) deathExplosions  -- Explosiones de muerte
-  ++ [drawGameOverMessage gs]
+  ++ [drawGameOverMessage gs tournamentCount]
   ++ [drawMapBoundary]
 
 -- | Dibuja el mensaje del ganador o empate al terminar la partida.
-drawGameOverMessage :: GameState -> Picture
-drawGameOverMessage gs
+--   Solo muestra el mensaje de "Press R" después de completar 5 torneos.
+drawGameOverMessage :: GameState -> Int -> Picture
+drawGameOverMessage gs tournamentCount
   | countActiveRobots (robots gs) > 1 = blank
+  | tournamentCount < 5 = blank  -- No mostrar mensaje si aún no se completaron 5 torneos
   | otherwise =
       let winnerTxt = case find (\r -> robotHealth r > 0) (robots gs) of
                         Just r  -> "Robot " ++ show (objId (robotBase r)) ++ " WINS!"
