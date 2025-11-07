@@ -13,6 +13,7 @@
 
 module Torneos
   ( runGameLogicWithAutoTournaments
+  , statsFilePath
   ) where
 
 import GameState (GameState(..), GameWorld(..), countActiveRobots, emptyGameState, initialWorld, createInitialFixedObstacles, createObstacle)
@@ -28,10 +29,15 @@ import Physics (updateVelocity)
 import CollisionSAT (CollisionEvent, checkCollision)
 import GamePhysics (updatePhysics, handleCollisions)
 import GameUtils (findById, replaceRobot)
-import Data.List (find)
+import Data.List (find, foldl')
 import System.Random (randomRIO)
 import Assets (Assets)
 import Control.Monad (foldM)
+import Stats (TournamentStats, incrementShotsFired, addTimeAlive, setWinner, setDuration, renderTournamentStats, renderAggregateStats)
+import System.IO (appendFile)
+
+statsFilePath :: FilePath
+statsFilePath = "estadisticas.txt"
 
 -- ===========================================================
 -- SISTEMA DE TORNEOS AUTOMÁTICOS
@@ -47,51 +53,52 @@ import Control.Monad (foldM)
 --   
 --   Esta función incluye toda la lógica de runGameLogic pero con
 --   reinicio automático de torneos (hasta 5).
-runGameLogicWithAutoTournaments :: Float -> GameWorld -> GameWorld
-runGameLogicWithAutoTournaments dt w@GameWorld{..} =
-  let gs = gameState
-      -- Verificar si el torneo ha excedido la duración máxima
-      timeExceeded = time gs >= maxTournamentDuration
-      -- Verificar si el torneo ha terminado (solo queda un robot o ninguno)
-      tournamentEnded = countActiveRobots (robots gs) <= 1
-  in if tournamentEnded || timeExceeded
-        then 
-          -- Torneo terminado: verificar si debemos reiniciar o detener
-          -- El contador representa cuántos torneos se han completado
-          -- Reiniciamos si tournamentCount < (numTournaments - 1)
-          if tournamentCount < (numTournaments - 1)
-            then 
-              -- Aún no se han completado todos los torneos: reiniciar automáticamente
-              restartTournament w
-            else
-              -- Ya se completaron todos los torneos: incrementar contador y detener el juego
-              w { tournamentCount = numTournaments }
-        else
-          -- Torneo en curso: continuar con la lógica normal del juego
-          let (actions, gs0) = getAIActions gs dt              -- 1️⃣ Obtener acciones de IA
-              (gs1, newId)   = applyAllActions nextId dt actions gs0 -- 2️⃣ Aplicarlas
-              gs2            = updatePhysics dt gs1         -- 3️⃣ Actualizar físicas
-              gs3            = handleCollisions gs2         -- 4️⃣ Gestionar colisiones
-          in w { gameState = gs3, nextId = newId }
+runGameLogicWithAutoTournaments :: Float -> GameWorld -> IO GameWorld
+runGameLogicWithAutoTournaments dt w@GameWorld{..}
+  | tournamentCount >= numTournaments = pure w
+  | otherwise = do
+      let gs = gameState
+          timeExceeded = time gs >= maxTournamentDuration
+          tournamentEnded = countActiveRobots (robots gs) <= 1
+      if tournamentEnded || timeExceeded
+        then finishTournament w
+        else do
+          let (actions, gs0) = getAIActions gs dt
+              (gs1, newId)   = applyAllActions nextId dt actions gs0
+              gs2            = updatePhysics dt gs1
+              gsTime         = accumulateAliveTime dt gs2
+              gs3            = handleCollisions gsTime
+          pure w { gameState = gs3, nextId = newId }
 
--- | Reinicia un torneo automáticamente con la misma configuración.
---   Crea un nuevo GameState con robots en posiciones aleatorias
---   pero manteniendo la misma configuración de bots (número y tipos de IA).
---   Incrementa el contador de torneos completados.
-restartTournament :: GameWorld -> GameWorld
-restartTournament w@GameWorld{..} =
-  let gameAssets = assets gameState
-      areaWidthF = fromIntegral tournamentAreaWidth
-      areaHeightF = fromIntegral tournamentAreaHeight
-      -- Crear un nuevo GameState con la misma configuración
-      newGS = unsafePerformIO $ createInitialGameStateFromConfigIO gameAssets config areaWidthF areaHeightF
-  in w
-       { phase           = Playing
-       , gameState       = newGS
-       , config          = config  -- Mantener la misma configuración
-       , nextId          = numRobots config + 1
-       , tournamentCount = tournamentCount + 1  -- Incrementar contador de torneos
-       }
+finishTournament :: GameWorld -> IO GameWorld
+finishTournament w@GameWorld{..} = do
+  let gs = gameState
+      duration' = time gs
+      winner = determineWinner (robots gs)
+      baseStats = tournamentStats gs
+      finalStats = setDuration duration' (setWinner winner baseStats)
+      completed = completedTournaments ++ [finalStats]
+      index = length completed
+      gsWithFinal = gs { tournamentStats = finalStats }
+  appendTournamentStats statsFilePath index finalStats
+  if index < numTournaments
+    then do
+      let gameAssets = assets gameState
+          areaWidthF = fromIntegral tournamentAreaWidth
+          areaHeightF = fromIntegral tournamentAreaHeight
+      newGS <- createInitialGameStateFromConfigIO gameAssets config areaWidthF areaHeightF
+      pure w
+            { gameState = newGS
+            , nextId = numRobots config + 1
+            , tournamentCount = index
+            , completedTournaments = completed
+            }
+    else do
+      writeAggregateStats statsFilePath completed
+      pure w { gameState = gsWithFinal
+             , tournamentCount = index
+             , completedTournaments = completed
+             }
 
 -- ===========================================================
 -- FUNCIONES AUXILIARES (copiadas de GameLogic.hs)
@@ -131,7 +138,12 @@ applyAllActions startId dt allActs gs =
             let (r', mProj, nextId') = foldl (applyAction dt) (r, Nothing, currId) acts
                 rs' = replaceRobot r' (robots currGs)
                 ps' = projectiles currGs ++ mapMaybe id [mProj] -- Agrega proyectil si disparó
-            in (currGs { robots = rs', projectiles = ps' }, nextId')
+                ts0 = tournamentStats currGs
+                shooterId = objId (robotBase r)
+                ts' = case mProj of
+                        Just _  -> incrementShotsFired shooterId ts0
+                        Nothing -> ts0
+            in (currGs { robots = rs', projectiles = ps', tournamentStats = ts' }, nextId')
   in foldl step (gs, startId) allActs
 
 -- | Aplica una acción individual a un robot.
@@ -199,6 +211,33 @@ applyAction dt (r, mProj, currId) action = case action of
 
   -- No hace nada
   AI.Idle -> (r, mProj, currId)
+
+accumulateAliveTime :: Float -> GameState -> GameState
+accumulateAliveTime dt gs =
+  let aliveIds = [ objId (robotBase r)
+                 | r <- robots gs
+                 , robotHealth r > 0 || robotState r == Alive
+                 ]
+      ts0 = tournamentStats gs
+      ts' = foldl' (\acc botId -> addTimeAlive botId dt acc) ts0 aliveIds
+  in gs { tournamentStats = ts' }
+
+determineWinner :: [Robot] -> Maybe Int
+determineWinner rs =
+  case [ objId (robotBase r)
+       | r <- rs
+       , robotHealth r > 0 || robotState r == Alive
+       ] of
+    [single] -> Just single
+    _        -> Nothing
+
+appendTournamentStats :: FilePath -> Int -> TournamentStats -> IO ()
+appendTournamentStats path index stats =
+  appendFile path (renderTournamentStats index stats)
+
+writeAggregateStats :: FilePath -> [TournamentStats] -> IO ()
+writeAggregateStats path tournaments =
+  appendFile path (renderAggregateStats tournaments)
 
 -- | Construye el 'GameState' inicial de la partida con posiciones aleatorias.
 createInitialGameStateFromConfigIO :: Assets -> GameConfig -> Float -> Float -> IO GameState

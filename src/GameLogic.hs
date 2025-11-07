@@ -16,10 +16,11 @@ import CollisionSAT (CollisionEvent, checkCollision)
 import Graphics.Gloss.Interface.Pure.Game (Event)
 import GamePhysics (updatePhysics, handleCollisions)
 import GameUtils (findById, replaceRobot)
-import Data.List (find)
+import Data.List (find, foldl')
 import System.Random (randomRIO)
 import Assets (Assets)
 import Control.Monad (foldM)
+import Stats (incrementShotsFired, addTimeAlive)
 
 -- | Crea un nuevo 'GameWorld' a partir de la configuración seleccionada.
 --   Inicializa el 'GameState' con los robots y cambia a la fase Playing.
@@ -38,6 +39,7 @@ startGameFromConfig gameAssets conf areaWidth areaHeight maxDuration numTourns w
        , tournamentAreaHeight  = areaHeight
        , maxTournamentDuration = maxDuration
        , numTournaments        = numTourns
+       , completedTournaments  = []
        }
 
 -- | Construye el 'GameState' inicial de la partida con posiciones aleatorias.
@@ -195,7 +197,8 @@ runGameLogic dt w@GameWorld{..} =
           let (actions, gs0) = getAIActions gs dt              -- 1️⃣ Obtener acciones de IA
               (gs1, newId)   = applyAllActions nextId dt actions gs0 -- 2️⃣ Aplicarlas
               gs2            = updatePhysics dt gs1         -- 3️⃣ Actualizar físicas
-              gs3            = handleCollisions gs2         -- 4️⃣ Gestionar colisiones
+              gsTime         = accumulateAliveTime dt gs2   -- Acumular tiempo en vida
+              gs3            = handleCollisions gsTime      -- 4️⃣ Gestionar colisiones
           in w { gameState = gs3, nextId = newId }
 
 -- | Manejador de eventos dentro de la partida (actualmente vacío).
@@ -236,7 +239,12 @@ applyAllActions startId dt allActs gs =
             let (r', mProj, nextId') = foldl (applyAction dt) (r, Nothing, currId) acts
                 rs' = replaceRobot r' (robots currGs)
                 ps' = projectiles currGs ++ mapMaybe id [mProj] -- Agrega proyectil si disparó
-            in (currGs { robots = rs', projectiles = ps' }, nextId')
+                ts0 = tournamentStats currGs
+                shooterId = objId (robotBase r)
+                ts' = case mProj of
+                        Just _  -> incrementShotsFired shooterId ts0
+                        Nothing -> ts0
+            in (currGs { robots = rs', projectiles = ps', tournamentStats = ts' }, nextId')
   in foldl step (gs, startId) allActs
 
 -- | Aplica una acción individual a un robot.
@@ -304,3 +312,13 @@ applyAction dt (r, mProj, currId) action = case action of
 
   -- No hace nada
   AI.Idle -> (r, mProj, currId)
+
+accumulateAliveTime :: Float -> GameState -> GameState
+accumulateAliveTime dt gs =
+  let aliveIds = [ objId (robotBase r)
+                 | r <- robots gs
+                 , robotHealth r > 0 || robotState r == Alive
+                 ]
+      ts0 = tournamentStats gs
+      ts' = foldl' (\acc botId -> addTimeAlive botId dt acc) ts0 aliveIds
+  in gs { tournamentStats = ts' }

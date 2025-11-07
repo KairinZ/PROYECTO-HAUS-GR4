@@ -15,6 +15,7 @@ import ExplosionTypes (Explosion)
 import GameTypes (GamePhase(MainMenu), GameConfig(GameConfig, numRobots, botConfigs), BotConfig(BotConfig))
 import GameConstants (screenWidth, screenHeight, robotWidth, robotHeight)
 import Geometry (createRectanglePolygon, Point)
+import Stats (TournamentStats, emptyTournamentStats)
 
 data GameState = GameState
   { robots      :: [Robot]
@@ -24,6 +25,7 @@ data GameState = GameState
   , time        :: Float
   , gameMap     :: GameMap
   , assets      :: Assets
+  , tournamentStats :: TournamentStats
   }
 
 -- | Estado completo del mundo en un momento dado.
@@ -39,6 +41,7 @@ data GameWorld = GameWorld
   , tournamentAreaHeight  :: Int          -- ^ Alto del área de torneo
   , maxTournamentDuration :: Float        -- ^ Duración máxima de cada torneo (segundos)
   , numTournaments        :: Int          -- ^ Número total de torneos a ejecutar
+  , completedTournaments  :: [TournamentStats]
   }
 
 emptyGameState :: Assets -> Float -> Float -> GameState
@@ -50,6 +53,7 @@ emptyGameState gameAssets areaWidth areaHeight = GameState
   , time        = 0
   , gameMap     = createGameMap areaWidth areaHeight
   , assets      = gameAssets
+  , tournamentStats = emptyTournamentStats
   }
 
 -- | Crea un GameMap con paredes alrededor de los bordes de la pantalla.
@@ -84,6 +88,7 @@ initialWorld = GameWorld
   , tournamentAreaHeight = 600
   , maxTournamentDuration = 300.0
   , numTournaments        = 5
+  , completedTournaments  = []
   }
 
 countActiveRobots :: [Robot] -> Int

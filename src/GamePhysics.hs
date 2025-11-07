@@ -14,6 +14,7 @@ import Memory (get, set, MemoryValue(..))
 import Graphics.Gloss
 import Geometry (Point, Vector, Distance, addVec, subVec, vectorXScalar, angleToTarget, distanceBetween, createRectanglePolygon)
 import Data.List (nub)
+import Stats (incrementHitsLanded, addDamageDealt, addDamageTaken)
 
 -- | Calcula la magnitud de un vector.
 magnitude :: Geometry.Vector -> Float
@@ -256,9 +257,19 @@ applyEffect gs (RobotProjectile rid pid) =
                                                                 [])
 
                  projs'  = filter (\q -> objId (projBase q) /= pid) (projectiles gs)
-                 
+
                  allExplosions = impactBoom : deathExplosions ++ explosions gs
-             in gs { robots = robotsAfterDamage, projectiles = projs', explosions = allExplosions }
+                 ownerId = projOwner p
+                 targetId = objId (robotBase r)
+                 ts0 = tournamentStats gs
+                 ts1 = incrementHitsLanded ownerId ts0
+                 ts2 = addDamageDealt ownerId damage ts1
+                 ts3 = addDamageTaken targetId damage ts2
+             in gs { robots = robotsAfterDamage
+                   , projectiles = projs'
+                   , explosions = allExplosions
+                   , tournamentStats = ts3
+                   }
        _ -> gs
 applyEffect gs (RobotRobot _ _) = gs
 

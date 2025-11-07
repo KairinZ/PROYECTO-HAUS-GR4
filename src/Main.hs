@@ -18,13 +18,14 @@ module Main where
 -- Gloss: motor gráfico funcional usado para renderizar y manejar eventos.
 import Graphics.Gloss hiding (Polygon, arc)
 import Graphics.Gloss.Interface.Pure.Game hiding (Polygon, text)
+import Graphics.Gloss.Interface.IO.Game (playIO)
 
 -- Módulos del proyecto
 import GameTypes (GamePhase(..), GameConfig(..))
 import GameConstants
 import GameMenus
 import GameLogic
-import Torneos (runGameLogicWithAutoTournaments)
+import Torneos (runGameLogicWithAutoTournaments, statsFilePath)
 import GamePhysics
 import GameRender
 import CollisionSAT
@@ -36,6 +37,8 @@ import Entities (AIType(..)) -- Importamos tipos de IA
 
 -- Librerías estándar
 import Prelude hiding (Left, Right)
+import Control.Monad (when)
+import System.Directory (doesFileExist, removeFile)
 
 -- ===========================================================
 -- 1) FUNCIÓN PRINCIPAL (MAIN)
@@ -67,15 +70,41 @@ main = do
         , numTournaments = configNumTournaments tournamentConfig
         , gameState = emptyGameState gameAssets (fromIntegral $ configAreaWidth tournamentConfig) (fromIntegral $ configAreaHeight tournamentConfig)
         }
-  
-  play
+  resetStatsFile statsFilePath
+
+  playIO
     window          -- Ventana principal
     backgroundColor -- Color de fondo
     fps             -- Fotogramas por segundo
     initialWorldWithConfig -- Estado inicial del juego con assets y configuración
-    render          -- Función para dibujar
-    handleEvent     -- Función para manejar eventos (teclado/ratón)
-    updateGame      -- Función para actualizar el estado (cada tick)
+    renderIO        -- Función para dibujar
+    handleEventIO   -- Función para manejar eventos (teclado/ratón)
+    updateGameIO    -- Función para actualizar el estado (cada tick)
+
+resetStatsFile :: FilePath -> IO ()
+resetStatsFile path = do
+  exists <- doesFileExist path
+  when exists (removeFile path)
+
+renderIO :: GameWorld -> IO Picture
+renderIO = pure . render
+
+handleEventIO :: Event -> GameWorld -> IO GameWorld
+handleEventIO ev w = do
+  let w' = handleEvent ev w
+  case ev of
+    EventKey (Char 'r') Down _ _ -> resetStatsFile statsFilePath
+    _                           -> pure ()
+  let wasPlaying = phase w == Playing
+      nowPlaying = phase w' == Playing
+  when (not wasPlaying && nowPlaying) (resetStatsFile statsFilePath)
+  pure w'
+
+updateGameIO :: Float -> GameWorld -> IO GameWorld
+updateGameIO dt w@GameWorld{..} =
+  case phase of
+    Playing -> runGameLogicWithAutoTournaments dt w
+    _       -> pure w
 
 -- ===========================================================
 -- 2) DISPATCHERS POR FASE
@@ -110,17 +139,10 @@ handleEvent ev w@GameWorld{..}
         , tournamentAreaHeight = tournamentAreaHeight
         , maxTournamentDuration = maxTournamentDuration
         , numTournaments = numTournaments
+        , completedTournaments = []
         }
   | otherwise = case phase of
       MainMenu     -> handleMenuEvents ev w      -- Eventos del menú principal
       ConfigScreen -> handleConfigEvents (assets gameState) startGameFromConfig ev w    -- Eventos en pantalla de configuración
       Playing      -> handleGameEvents ev w      -- Eventos en partida (aún vacío)
-
--- | Actualiza el estado del juego cada frame.
---   Solo ejecuta la lógica cuando se está jugando.
-updateGame :: Float -> GameWorld -> GameWorld
-updateGame dt w@GameWorld{..} =
-  case phase of
-    Playing -> runGameLogicWithAutoTournaments dt w   -- Avanza la simulación con torneos automáticos
-    _       -> w                   -- En menús, no cambia nada
 
