@@ -1,0 +1,31 @@
+===== Torneo 1 =====
+Duracion: 9.92 s
+Ganador: Bot 1
+[Bot 1] shots=8, hits=4, dmgDealt=40, dmgTaken=30, timeAlive=9.92s, lifePct=100.0%
+[Bot 2] shots=5, hits=5, dmgDealt=50, dmgTaken=50, timeAlive=9.90s, lifePct=99.8%
+[Bot 3] shots=5, hits=5, dmgDealt=50, dmgTaken=60, timeAlive=4.23s, lifePct=42.7%
+[Bot 4] shots=8, hits=4, dmgDealt=40, dmgTaken=40, timeAlive=9.00s, lifePct=90.8%
+
+===== Torneo 2 =====
+Duracion: 30.02 s
+Ganador: None
+[Bot 1] shots=7, hits=5, dmgDealt=50, dmgTaken=70, timeAlive=6.45s, lifePct=21.5%
+[Bot 2] shots=18, hits=1, dmgDealt=10, dmgTaken=0, timeAlive=30.02s, lifePct=100.0%
+[Bot 3] shots=3, hits=3, dmgDealt=30, dmgTaken=0, timeAlive=30.02s, lifePct=100.0%
+[Bot 4] shots=22, hits=5, dmgDealt=50, dmgTaken=70, timeAlive=22.03s, lifePct=73.4%
+
+===== Torneo 3 =====
+Duracion: 30.02 s
+Ganador: None
+[Bot 1] shots=10, hits=9, dmgDealt=90, dmgTaken=100, timeAlive=9.57s, lifePct=31.9%
+[Bot 2] shots=10, hits=10, dmgDealt=100, dmgTaken=90, timeAlive=30.02s, lifePct=100.0%
+[Bot 3] shots=10, hits=7, dmgDealt=70, dmgTaken=10, timeAlive=30.02s, lifePct=100.0%
+[Bot 4] shots=9, hits=1, dmgDealt=10, dmgTaken=70, timeAlive=12.45s, lifePct=41.5%
+
+===== Resumen (3 torneos) =====
+[Bot 1] avg(shots)=8.33, max(shots)=10, avg(hits)=6.00, max(hits)=9, avg(dmgDealt)=60.00, max(dmgDealt)=90, avg(dmgTaken)=66.67, max(dmgTaken)=100, avg(timeAlive)=8.64s, max(timeAlive)=9.92s, avg(lifePct)=51.1%, max(lifePct)=100.0%, total(dmgDealt)=180, total(dmgTaken)=200
+[Bot 2] avg(shots)=11.00, max(shots)=18, avg(hits)=5.33, max(hits)=10, avg(dmgDealt)=53.33, max(dmgDealt)=100, avg(dmgTaken)=46.67, max(dmgTaken)=90, avg(timeAlive)=23.31s, max(timeAlive)=30.02s, avg(lifePct)=99.9%, max(lifePct)=100.0%, total(dmgDealt)=160, total(dmgTaken)=140
+[Bot 3] avg(shots)=6.00, max(shots)=10, avg(hits)=5.00, max(hits)=7, avg(dmgDealt)=50.00, max(dmgDealt)=70, avg(dmgTaken)=23.33, max(dmgTaken)=60, avg(timeAlive)=21.42s, max(timeAlive)=30.02s, avg(lifePct)=80.9%, max(lifePct)=100.0%, total(dmgDealt)=150, total(dmgTaken)=70
+[Bot 4] avg(shots)=13.00, max(shots)=22, avg(hits)=3.33, max(hits)=5, avg(dmgDealt)=33.33, max(dmgDealt)=50, avg(dmgTaken)=60.00, max(dmgTaken)=70, avg(timeAlive)=14.49s, max(timeAlive)=22.03s, avg(lifePct)=68.5%, max(lifePct)=90.8%, total(dmgDealt)=100, total(dmgTaken)=180
+Global: avgDuration=23.32 s, maxDuration=30.02 s, winsPorBot={1:1}
+

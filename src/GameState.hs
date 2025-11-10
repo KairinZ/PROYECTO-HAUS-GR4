@@ -51,7 +51,7 @@ emptyGameState gameAssets areaWidth areaHeight = GameState
   , explosions  = []
   , obstacles   = []
   , time        = 0
-  , gameMap     = createGameMap areaWidth areaHeight
+  , gameMap     = createGameMap (fromIntegral screenWidth) (fromIntegral screenHeight)
   , assets      = gameAssets
   , tournamentStats = emptyTournamentStats
   }
